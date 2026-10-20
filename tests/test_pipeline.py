@@ -22,7 +22,7 @@ REAL_CHANGELOG = REPO / "changelog.yaml"
 TEST_CHANGELOG = REPO / "tests" / "changelog_with_new_entry.yaml"
 
 sys.path.insert(0, str(REPO / "pipeline"))
-from generate import check_source, check_cross_field  # noqa: E402
+from generate import check_source, check_cross_field, check_schema  # noqa: E402
 
 
 def run(changelog, outdir):
@@ -104,6 +104,24 @@ def test_source_consistency_flags_known_issues():
     assert len(warnings) >= 2
 
 
+def test_schema_validation():
+    """The real changelog is structurally valid; malformed entries are caught."""
+    assert check_schema(yaml.safe_load(open(REAL_CHANGELOG))) == []
+
+    bad = {"changes": [
+        {"id": "C1", "title": "t", "type": "feature", "breaking": False,
+         "audience": ["admin"], "visibility": "external", "description": "d"},
+        {"id": "C1", "title": "dup", "type": "weird_type", "breaking": "yes",
+         "visibility": "public", "description": "d"},   # dup id, bad type, bad breaking/visibility, missing audience
+    ]}
+    errs = " ".join(check_schema(bad))
+    assert "duplicate id" in errs
+    assert "unknown type" in errs
+    assert "unknown visibility" in errs
+    assert "breaking" in errs
+    assert "missing required field" in errs
+
+
 def test_cross_field_checks():
     """Cross-field warnings fire on bad combinations, and the real changelog is clean."""
     # the real changelog should NOT add cross-field noise
@@ -153,6 +171,7 @@ if __name__ == "__main__":
                test_adding_entries_regenerates_without_hand_editing,
                test_internal_only_changelog_still_safe,
                test_source_consistency_flags_known_issues,
+               test_schema_validation,
                test_cross_field_checks,
                test_check_mode_passes_on_committed_outputs,
                test_check_mode_detects_drift):

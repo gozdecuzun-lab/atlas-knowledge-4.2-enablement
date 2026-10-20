@@ -175,6 +175,40 @@ def check_source(data, repo):
     return warnings
 
 
+REQUIRED_FIELDS = {"id", "title", "type", "breaking", "audience", "visibility", "description"}
+ALLOWED_TYPES = {"api_deprecation", "api_change", "config_change", "ui_change", "feature", "internal"}
+ALLOWED_VISIBILITY = {"external", "internal"}
+
+
+def check_schema(data):
+    """
+    Structural validation of the changelog. Returns a list of ERRORS (fatal): missing required
+    fields, unknown enum values, wrong types, or duplicate ids. Run before anything else so a
+    malformed changelog fails fast and loudly instead of producing silently-wrong output.
+    """
+    errors = []
+    if not data.get("changes"):
+        return ["changelog has no 'changes'."]
+    seen = set()
+    for i, c in enumerate(data["changes"]):
+        cid = c.get("id", f"<index {i}>")
+        missing = REQUIRED_FIELDS - set(c)
+        if missing:
+            errors.append(f"{cid}: missing required field(s) {sorted(missing)}.")
+        if "id" in c:
+            if c["id"] in seen:
+                errors.append(f"duplicate id: {c['id']}.")
+            seen.add(c["id"])
+        if c.get("type") not in ALLOWED_TYPES:
+            errors.append(f"{cid}: unknown type {c.get('type')!r} (allowed: {sorted(ALLOWED_TYPES)}).")
+        if c.get("visibility") not in ALLOWED_VISIBILITY:
+            errors.append(f"{cid}: unknown visibility {c.get('visibility')!r} "
+                          f"(allowed: {sorted(ALLOWED_VISIBILITY)}).")
+        if "breaking" in c and not isinstance(c["breaking"], bool):
+            errors.append(f"{cid}: 'breaking' must be true/false, got {c['breaking']!r}.")
+    return errors
+
+
 CUSTOMER_ROLES = {"admin", "author", "developer", "partner", "prospect"}
 
 
@@ -301,6 +335,10 @@ def main():
 
     repo = pathlib.Path(args.changelog).resolve().parent
     data = yaml.safe_load(open(args.changelog))
+
+    schema_errors = check_schema(data)          # fail fast on structural problems
+    if schema_errors:
+        raise SystemExit("SCHEMA ERROR:\n  - " + "\n  - ".join(schema_errors))
 
     warnings = check_source(data, repo)
     for w in warnings:

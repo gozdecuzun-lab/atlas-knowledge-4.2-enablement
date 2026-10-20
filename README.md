@@ -45,6 +45,8 @@ adds a new breaking change and a new internal change.
 deterministic and template-based: reproducible, no hallucination risk, no API key required. Quality
 is enforced in layers:
 
+0. **Schema validation** — a structurally malformed changelog (missing required fields, unknown
+   `type`/`visibility`, non-boolean `breaking`, duplicate ids) fails fast before anything else runs.
 1. **Rules** — level, action, and competency are derived from structured fields
    (`type`, `breaking`, `visibility`).
 2. **Human-authored templates** — wording lives in `pipeline/templates/`, reviewed once, reused.
