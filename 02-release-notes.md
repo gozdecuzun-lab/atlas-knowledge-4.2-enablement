@@ -12,7 +12,7 @@ GET /v1/search is deprecated. Use GET /v2/search, which requires a locale query 
 
 
 **Who is affected:** developer, partner
-**Action required:** Required: migrate off the deprecated endpoint before it is removed. It is scheduled for removal in release 4.3. Coordinate with your developer and partner teams.
+**Action required:** Required: migrate off the deprecated endpoint. It will be removed in a future release; confirm the exact timing in the migration guide before you migrate. Coordinate with your developer and partner teams.
 
 ### Webhook payload v2 for article.published (`C6`)
 

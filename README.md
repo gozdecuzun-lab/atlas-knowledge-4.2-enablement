@@ -51,8 +51,11 @@ is enforced in layers:
 3. **Quality gates** (`generate.py`) — refuse to write output if an invariant breaks (internal
    change leaks, breaking change with no action, assessment item missing a competency, fewer than
    two scenario items, a change missing from the map). Exercised by the tests.
-4. **Source-consistency checks** — surface contradictions in the raw material (see below) as
-   warnings; `--strict` makes them fail the build.
+4. **Source-consistency + cross-field checks** — surface contradictions in the raw material (see
+   below) and unusual field combinations (e.g., an internal change aimed at customer roles, a
+   deprecation with no removal date, a feature that defaults off with no flag) as warnings;
+   `--strict` makes them fail the build. These are warnings, not errors, so a legitimate edge case
+   is never blocked.
 5. **Drift check** (`--check`) — CI fails if committed outputs no longer match the changelog, so the
    generated files can never silently go stale.
 
@@ -78,8 +81,9 @@ The generator prints these as warnings on every run (and `--strict` fails on the
 1. **`changelog.yaml` indentation.** As received (from the PDF), entries C4–C6 were mis-indented and
    the file did not parse. Indentation normalized; content unchanged.
 2. **Search API removal date (C1).** `removal_release: "4.3"` contradicts the description ("v1
-   remains supported through release 4.4"). Surfaced in the notes/assessment and detected
-   automatically; confirm with the product team.
+   remains supported through release 4.4"). Detected automatically as a warning and flagged in the
+   assessment; the customer release note deliberately avoids publishing a specific (possibly wrong)
+   removal release and points to the migration guide instead. Confirm with the product team.
 3. **Webhook field name (C6 vs. sample).** The changelog renames `article_id` → `article_uuid`, but
    `samples/webhook_article_published_v2.json` labels the field `articleId`. Sample kept as given;
    mismatch flagged in the module/assessment and detected automatically.
@@ -98,3 +102,4 @@ time, not just for 4.2.
 - Multiple-choice distractors and difficulty tags on assessment items.
 - Auto-generate the 15-minute module outline the way the competency scaffold is generated.
 - A small eval set for the `--polish` layer (golden rephrasings) in addition to the fact-preservation guardrail.
+- A consistency check that the hand-authored competency map's coverage and levels match the pipeline's derivation, so the human map and the generated outputs cannot silently drift. (Left out deliberately here: for a 4–6 item map, human review is sufficient and a hard check would add more overhead than value.)

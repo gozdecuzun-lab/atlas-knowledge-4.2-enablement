@@ -22,7 +22,7 @@ REAL_CHANGELOG = REPO / "changelog.yaml"
 TEST_CHANGELOG = REPO / "tests" / "changelog_with_new_entry.yaml"
 
 sys.path.insert(0, str(REPO / "pipeline"))
-from generate import check_source  # noqa: E402
+from generate import check_source, check_cross_field  # noqa: E402
 
 
 def run(changelog, outdir):
@@ -104,6 +104,29 @@ def test_source_consistency_flags_known_issues():
     assert len(warnings) >= 2
 
 
+def test_cross_field_checks():
+    """Cross-field warnings fire on bad combinations, and the real changelog is clean."""
+    # the real changelog should NOT add cross-field noise
+    real = yaml.safe_load(open(REAL_CHANGELOG))
+    assert check_cross_field(real) == []
+
+    # a crafted bad changelog should trip several cross-field warnings
+    bad = {"changes": [
+        {"id": "X1", "type": "internal", "visibility": "internal", "audience": ["admin"]},
+        {"id": "X2", "type": "api_deprecation", "visibility": "external",
+         "audience": ["developer"]},                              # no removal_release
+        {"id": "X3", "type": "feature", "visibility": "external", "audience": ["admin"],
+         "default": "off"},                                       # off but no feature_flag
+        {"id": "X4", "type": "ui_change", "visibility": "external", "audience": ["author"],
+         "breaking": True},                                       # cosmetic but breaking
+    ]}
+    warns = " ".join(check_cross_field(bad))
+    assert "X1" in warns and "customer" in warns
+    assert "X2" in warns and "removal_release" in warns
+    assert "X3" in warns and "feature_flag" in warns
+    assert "X4" in warns and "breaking" in warns
+
+
 def test_check_mode_passes_on_committed_outputs():
     """--check must pass when the committed outputs match the changelog (no drift)."""
     proc = subprocess.run(
@@ -130,6 +153,7 @@ if __name__ == "__main__":
                test_adding_entries_regenerates_without_hand_editing,
                test_internal_only_changelog_still_safe,
                test_source_consistency_flags_known_issues,
+               test_cross_field_checks,
                test_check_mode_passes_on_committed_outputs,
                test_check_mode_detects_drift):
         try:

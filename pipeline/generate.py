@@ -50,13 +50,30 @@ def derive_level(change):
     return "know"
 
 
+def _removal_contradiction(change):
+    """True if removal_release is set but the description names a different release."""
+    removal = change.get("removal_release")
+    if not removal:
+        return False
+    mentioned = set(re.findall(r"release (\d+\.\d+)", change.get("description", "")))
+    return bool(mentioned) and removal not in mentioned
+
+
 def derive_action(change):
     t = change["type"]
     if t == "api_deprecation":
         removal = change.get("removal_release")
-        when = f" It is scheduled for removal in release {removal}." if removal else ""
-        return ("Required: migrate off the deprecated endpoint before it is removed." + when
-                + " Coordinate with your developer and partner teams.")
+        if _removal_contradiction(change):
+            # source is self-contradictory about the date: do NOT publish a specific (maybe
+            # wrong) release to customers; stay conservative and point to the migration guide.
+            core = ("Required: migrate off the deprecated endpoint. It will be removed in a future "
+                    "release; confirm the exact timing in the migration guide before you migrate.")
+        elif removal:
+            core = ("Required: migrate off the deprecated endpoint before it is removed in "
+                    f"release {removal}.")
+        else:
+            core = "Required: migrate off the deprecated endpoint before it is removed."
+        return core + " Coordinate with your developer and partner teams."
     if t == "api_change":
         return ("Required: update any integration that parses the changed field or payload. "
                 "Coordinate with your developer and partner teams.")
@@ -140,12 +157,11 @@ def check_source(data, repo):
     warnings = []
     for c in data["changes"]:
         # removal_release field vs. a release number mentioned in the description
-        if c.get("removal_release"):
-            mentioned = set(re.findall(r"release (\d+\.\d+)", c.get("description", "")))
-            if mentioned and c["removal_release"] not in mentioned:
-                warnings.append(
-                    f"{c['id']}: removal_release is {c['removal_release']} but the description "
-                    f"mentions release(s) {sorted(mentioned)} - the removal date is contradictory.")
+        if _removal_contradiction(c):
+            mentioned = sorted(set(re.findall(r"release (\d+\.\d+)", c.get("description", ""))))
+            warnings.append(
+                f"{c['id']}: removal_release is {c['removal_release']} but the description "
+                f"mentions release(s) {mentioned} - the removal date is contradictory.")
         # a described field rename vs. what the sample file actually contains
         desc = c.get("description", "")
         if "article_id" in desc and "article_uuid" in desc:
@@ -155,7 +171,42 @@ def check_source(data, repo):
                     f"{c['id']}: description renames the field to `article_uuid`, but "
                     f"samples/webhook_article_published_v2.json does not contain `article_uuid` "
                     f"(field-name mismatch).")
+    warnings += check_cross_field(data)
     return warnings
+
+
+CUSTOMER_ROLES = {"admin", "author", "developer", "partner", "prospect"}
+
+
+def check_cross_field(data):
+    """
+    Cross-field sanity checks. These are WARNINGS, not errors: they flag unusual combinations
+    that are *probably* mistakes, but a legitimate edge case could trip them, so they must never
+    block a valid changelog. The reviewer confirms; a false positive is just an ignorable line.
+    """
+    w = []
+    for c in data["changes"]:
+        cid = c.get("id", "?")
+        vis = c.get("visibility")
+        audience = set(c.get("audience", []))
+        # internal item aimed at customers, or external item aimed only at Atlas engineering
+        if vis == "internal" and (audience & CUSTOMER_ROLES):
+            w.append(f"{cid}: visibility is internal but audience includes customer roles "
+                     f"{sorted(audience & CUSTOMER_ROLES)} - confirm it should not be customer-facing.")
+        if vis == "external" and audience and not (audience & CUSTOMER_ROLES):
+            w.append(f"{cid}: visibility is external but audience is only {sorted(audience)} "
+                     f"- confirm it is really customer-facing.")
+        # a deprecation with no stated removal
+        if c.get("type") == "api_deprecation" and not c.get("removal_release"):
+            w.append(f"{cid}: api_deprecation without a removal_release - customers won't know the deadline.")
+        # a feature that is off but has no flag to turn it on
+        default_off = c.get("default") is False or str(c.get("default")).lower() == "off"
+        if c.get("type") == "feature" and default_off and not c.get("feature_flag"):
+            w.append(f"{cid}: feature defaults off but has no feature_flag - how is it enabled?")
+        # a 'cosmetic' or internal change marked breaking
+        if c.get("breaking") and c.get("type") in ("ui_change", "internal"):
+            w.append(f"{cid}: type is {c['type']} but marked breaking - unusual; confirm.")
+    return w
 
 
 # ---------- Quality gates (invariants that MUST hold in the output) ----------
