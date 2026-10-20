@@ -14,10 +14,15 @@ import pathlib
 import subprocess
 import sys
 
+import yaml
+
 REPO = pathlib.Path(__file__).resolve().parent.parent
 GEN = REPO / "pipeline" / "generate.py"
 REAL_CHANGELOG = REPO / "changelog.yaml"
 TEST_CHANGELOG = REPO / "tests" / "changelog_with_new_entry.yaml"
+
+sys.path.insert(0, str(REPO / "pipeline"))
+from generate import check_source  # noqa: E402
 
 
 def run(changelog, outdir):
@@ -89,15 +94,49 @@ def test_internal_only_changelog_still_safe(tmp_path):
     assert "C8" in scaffold.split("Excluded")[1]
 
 
+def test_source_consistency_flags_known_issues():
+    """The two real contradictions in the source material must be detected."""
+    data = yaml.safe_load(open(REAL_CHANGELOG))
+    warnings = check_source(data, REPO)
+    text = " ".join(warnings)
+    assert any("C1" in w and "removal_release" in w for w in warnings)   # 4.3 vs 4.4
+    assert any("C6" in w and "article_uuid" in w for w in warnings)      # field-name mismatch
+    assert len(warnings) >= 2
+
+
+def test_check_mode_passes_on_committed_outputs():
+    """--check must pass when the committed outputs match the changelog (no drift)."""
+    proc = subprocess.run(
+        [sys.executable, str(GEN), "--check", "--outdir", str(REPO)],
+        capture_output=True, text=True)
+    assert proc.returncode == 0, "committed outputs are stale; run generate.py\n" + proc.stdout
+
+
+def test_check_mode_detects_drift(tmp_path):
+    """--check must fail when outputs are missing/stale (drift)."""
+    proc = subprocess.run(
+        [sys.executable, str(GEN), "--check", "--outdir", str(tmp_path)],
+        capture_output=True, text=True)
+    assert proc.returncode != 0
+    assert "DRIFT" in proc.stdout or "DRIFT" in proc.stderr
+
+
 if __name__ == "__main__":
     # allow running without pytest installed
     import tempfile
+    import inspect
     failures = 0
     for fn in (test_real_changelog_passes_and_excludes_internal,
                test_adding_entries_regenerates_without_hand_editing,
-               test_internal_only_changelog_still_safe):
+               test_internal_only_changelog_still_safe,
+               test_source_consistency_flags_known_issues,
+               test_check_mode_passes_on_committed_outputs,
+               test_check_mode_detects_drift):
         try:
-            fn(pathlib.Path(tempfile.mkdtemp()))
+            if inspect.signature(fn).parameters:
+                fn(pathlib.Path(tempfile.mkdtemp()))
+            else:
+                fn()
             print(f"PASS  {fn.__name__}")
         except AssertionError as e:
             failures += 1

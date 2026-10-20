@@ -1,7 +1,7 @@
 # Atlas Knowledge 4.2 — Release Enablement
 
 Turns the 4.2 changelog into customer release training, and makes the next release a matter of
-minutes: edit `changelog.yaml`, re-run one script, and the release notes, assessment, and a
+minutes: edit `changelog.yaml`, run one script, and the release notes, assessment, and a
 competency-map scaffold regenerate themselves.
 
 ## Contents
@@ -11,12 +11,15 @@ competency-map scaffold regenerate themselves.
 | `changelog.yaml` | Source of truth for the release. | Given (indentation normalized — see below). |
 | `samples/` | API + webhook request/payload samples. | Given. |
 | `01-competency-map.md` | Final competency map (admin). | Human-authored, refined from the scaffold. |
-| `02-release-notes.md` | Customer release notes. | **Generated** from the changelog. |
-| `03-module-15min.md` | 15-minute module + hands-on exercise. | Human-authored. |
-| `04-assessment.md` | 5-item readiness assessment + answer key. | **Generated** from the changelog. |
-| `competency-map-scaffold.md` | Mechanical competency draft. | **Generated** from the changelog. |
-| `pipeline/` | Generator + Jinja templates. | — |
-| `tests/` | Automated tests + a changelog fixture. | — |
+| `02-release-notes.md` | Customer release notes. | **Generated.** |
+| `03-module-15min.md` | 15-minute module, hands-on exercise, evaluation plan. | Human-authored. |
+| `04-assessment.md` | 5-item readiness assessment + answer key. | **Generated.** |
+| `competency-map-scaffold.md` | Mechanical competency draft for human review. | **Generated.** |
+| `pipeline/generate.py` | Generator: rules, templates, quality gates, `--check`, source checks. | — |
+| `pipeline/llm_polish.py` | Optional, guarded LLM polish layer. | — |
+| `pipeline/templates/`, `pipeline/prompts/` | Content templates and the polish prompt (prompt-as-code). | — |
+| `tests/` | Quality-gate, regeneration, drift, and LLM-guardrail tests. | — |
+| `.github/workflows/ci.yml` | CI: runs tests + drift check on every push. | — |
 | `AI-LOG.md` | How AI was used. | — |
 
 ## How to run
@@ -24,33 +27,41 @@ competency-map scaffold regenerate themselves.
 ```bash
 pip install -r requirements.txt
 
-# regenerate release notes, assessment, and the competency scaffold
-python pipeline/generate.py
+python pipeline/generate.py            # regenerate (deterministic)
+python pipeline/generate.py --check    # fail if committed outputs are stale (used in CI)
+python pipeline/generate.py --strict   # treat source-consistency warnings as errors
+python pipeline/generate.py --polish   # optional guarded LLM polish (needs an API key; safe to omit)
 
-# run the tests (quality gates + regeneration proof)
-python -m pytest -q          # or, with no pytest installed:  python tests/test_pipeline.py
+python -m pytest -q                    # or: python tests/test_pipeline.py && python tests/test_llm_polish.py
 ```
 
 To prepare the **next** release, add entries to `changelog.yaml` and re-run `generate.py`. You do
-not hand-edit any generated file. (See `tests/changelog_with_new_entry.yaml` for a worked example
-that adds a new breaking change and a new internal change.)
+not hand-edit any generated file. `tests/changelog_with_new_entry.yaml` is a worked example that
+adds a new breaking change and a new internal change.
 
-## Design: why a deterministic pipeline
+## Design
 
-Release notes and assessments are accuracy-critical, so the generator is **deterministic and
-template-based**: no LLM at runtime. That means output is reproducible, carries no hallucination
-risk, and runs with no API key. Quality is enforced in three layers:
+**Deterministic core.** Release notes and assessments are accuracy-critical, so generation is
+deterministic and template-based: reproducible, no hallucination risk, no API key required. Quality
+is enforced in layers:
 
 1. **Rules** — level, action, and competency are derived from structured fields
    (`type`, `breaking`, `visibility`).
-2. **Human-authored templates** — the wording lives in `pipeline/templates/` and in the per-type
-   question text, reviewed once and reused.
-3. **Quality gates** — `generate.py` refuses to write output if an invariant is broken (e.g., an
-   internal change leaks out, a breaking change has no action, an assessment item is missing a
-   competency, or there are fewer than two scenario items). The tests exercise these.
+2. **Human-authored templates** — wording lives in `pipeline/templates/`, reviewed once, reused.
+3. **Quality gates** (`generate.py`) — refuse to write output if an invariant breaks (internal
+   change leaks, breaking change with no action, assessment item missing a competency, fewer than
+   two scenario items, a change missing from the map). Exercised by the tests.
+4. **Source-consistency checks** — surface contradictions in the raw material (see below) as
+   warnings; `--strict` makes them fail the build.
+5. **Drift check** (`--check`) — CI fails if committed outputs no longer match the changelog, so the
+   generated files can never silently go stale.
 
-An optional LLM "polish" layer could enrich the prose later, but the reliable core stays
-deterministic.
+**Optional guarded AI layer** (`--polish`, `pipeline/llm_polish.py`). An LLM may only *rephrase*
+already-correct Markdown. Every call is verified: the returned text must still contain every
+required fact (change IDs, field names, settings paths, flags); if any is missing, or there is no
+API key, the LLM output is rejected and the deterministic text is returned unchanged. So enabling
+`--polish` can, at worst, do nothing — it can never introduce a wrong or hallucinated release note.
+The guardrail is unit-tested with fake models (`tests/test_llm_polish.py`).
 
 ## Assumptions
 
@@ -60,24 +71,30 @@ deterministic.
 - Internal-visibility changes are excluded from every customer-facing artifact.
 - "Levels" reflect the admin's responsibility and risk, not a change's technical depth.
 
-## What I found unclear in the source material
+## Source material: issues found
 
-1. **`changelog.yaml` indentation.** As received (from the PDF), entries C4–C6 were mis-indented
-   and the file did not parse. I normalized the indentation; content is unchanged.
-2. **Search API removal date (C1).** The field `removal_release: "4.3"` contradicts the description
-   ("v1 remains supported through release 4.4"). I surfaced this in the release notes and
-   assessment rather than guessing; it should be confirmed with the product team.
-3. **Webhook field name (C6 vs. sample).** The changelog says `article_id` becomes `article_uuid`,
-   but `samples/webhook_article_published_v2.json` labels the field `articleId`. I kept the sample
-   as given and flagged the mismatch in the module and assessment.
+The generator prints these as warnings on every run (and `--strict` fails on them):
+
+1. **`changelog.yaml` indentation.** As received (from the PDF), entries C4–C6 were mis-indented and
+   the file did not parse. Indentation normalized; content unchanged.
+2. **Search API removal date (C1).** `removal_release: "4.3"` contradicts the description ("v1
+   remains supported through release 4.4"). Surfaced in the notes/assessment and detected
+   automatically; confirm with the product team.
+3. **Webhook field name (C6 vs. sample).** The changelog renames `article_id` → `article_uuid`, but
+   `samples/webhook_article_published_v2.json` labels the field `articleId`. Sample kept as given;
+   mismatch flagged in the module/assessment and detected automatically.
+
+## Evaluation
+
+`03-module-15min.md` includes a success-criteria plan (reaction / learning / behavior), with a
+per-competency pass bar on the assessment (≥ 4/5 overall and both breaking-change items correct).
+Because the assessment is regenerated each release, this per-competency signal is available every
+time, not just for 4.2.
 
 ## What I'd do with more time
 
-- Add an optional LLM polish pass (with the deterministic output as the guardrail) for more varied,
-  on-brand prose.
-- Auto-generate the 15-minute module outline from the changelog, the way the scaffold is generated.
-- Support audience-specific release notes (separate admin / developer / author views from the same
-  `audience` fields).
-- Add multiple-choice distractors and difficulty tags to assessment items.
-- Validate the samples against the changelog automatically (e.g., assert the webhook field name
-  matches), turning the inconsistencies above into failing checks.
+- Audience-specific release notes (separate admin / developer / author views from the `audience`
+  fields).
+- Multiple-choice distractors and difficulty tags on assessment items.
+- Auto-generate the 15-minute module outline the way the competency scaffold is generated.
+- A small eval set for the `--polish` layer (golden rephrasings) in addition to the fact-preservation guardrail.

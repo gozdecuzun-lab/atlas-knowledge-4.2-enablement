@@ -12,6 +12,8 @@ the pipeline itself — generation is deterministic by design (see README).
 | Pipeline design | "Should the generator be deterministic or LLM-based? Trade-offs?" | The decision to go deterministic (accuracy, reproducibility, no API key). | I added explicit quality gates and a test harness, because "trust the template" is not enough on its own. |
 | Release notes / assessment templates | "Draft Jinja templates and per-type action + question text." | The template structure and the per-change-type question styles. | Rewrote several answer keys to flag the source inconsistencies (see README) rather than paper over them. |
 | Debugging | "Why is the C4 action wrong?" | The diagnosis: YAML parses `off` as boolean `False`. | Fixed the generator to treat both `False` and `"off"` as "off". |
+| Guarded AI layer | "Add an optional LLM polish that cannot introduce errors." | The fact-preservation guardrail + fallback design. | Made the model injectable and wrote fake-model tests so the guardrail is proven without an API key; stored the prompt as a versioned file. |
+| CI / drift | "How do I stop generated files from going stale?" | The `--check` drift mode + a CI workflow. | Added source-consistency checks and wired both into CI so staleness and contradictions fail the build. |
 
 ## Judgment calls the AI did **not** make for me
 

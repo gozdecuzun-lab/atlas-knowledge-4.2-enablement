@@ -100,4 +100,27 @@ Open the two files in `samples/` and answer the questions. (Answer key below —
 
 </details>
 
+---
+
+## Evaluation & success criteria (how we know the training worked)
+
+Completing the module is not the goal; **readiness** is. I would measure on two levels:
+
+- **Level 1 — Reaction (immediate).** A 2-question confidence check at the end ("How confident are
+  you to adjust the SSO timeout / enable citations?" on a 1–5 scale). Target: median ≥ 4.
+- **Level 2 — Learning (knowledge/skill).** The 5-item assessment in `04-assessment.md`, each item
+  tied to a competency. **Pass bar: ≥ 4 of 5 correct, AND both breaking-change (CM3) items
+  correct**, since those are the highest-risk. Items are reported per competency so we can see
+  *which* competency is weak, not just an overall score.
+- **Level 3 — Behavior (leading indicator, post-release).** After go-live, track whether the
+  competencies actually landed: e.g., SSO-timeout override applied where expected (CM1), citations
+  enabled per portal (CM2), and a drop in day-one tickets about "logged out" and broken
+  integrations (CM1/CM3).
+
+**Closing the loop:** if an assessment item's pass rate is low, that competency's module segment is
+revised and the item is re-checked next release. Because the assessment is regenerated from the
+changelog, this per-competency signal is available every release, not just this one.
+
+---
+
 *This module maps to competencies CM1–CM4 in `01-competency-map.md`.*
