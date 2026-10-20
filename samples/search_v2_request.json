@@ -1,0 +1,5 @@
+{
+  "method": "GET",
+  "url": "https://api.atlas.example/v2/search?q=reset%20password&locale=en-US&limit=5",
+  "headers": { "Authorization": "Bearer <token>" }
+}

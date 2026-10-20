@@ -1,0 +1,46 @@
+# Test fixture: the 4.2 changelog PLUS two new entries, to prove the pipeline
+# regenerates correctly when the changelog grows, with NO hand-editing of outputs.
+#   C7 = a new EXTERNAL BREAKING api change  -> must appear in release notes (breaking) + assessment
+#   C8 = a new INTERNAL change               -> must stay out of all customer-facing output
+product: Atlas Knowledge
+release: "4.3"
+release_date: 2026-12-31
+changes:
+  - id: C1
+    title: Search API v1 deprecated
+    type: api_deprecation
+    breaking: true
+    audience: [developer, partner]
+    visibility: external
+    removal_release: "4.3"
+    description: >
+      GET /v1/search is deprecated. Use GET /v2/search, which requires a
+      locale query parameter (for example en-US).
+
+  - id: C2
+    title: Default SSO session timeout reduced
+    type: config_change
+    breaking: false
+    audience: [admin, partner]
+    visibility: external
+    description: >
+      The default SSO session timeout changes from 8 hours to 1 hour.
+
+  - id: C7
+    title: Bulk Export API v1 removed
+    type: api_change
+    breaking: true
+    audience: [developer, partner]
+    visibility: external
+    description: >
+      The v1 bulk export endpoint is removed. Integrations must move to the
+      v2 export job API, which returns a job id and a signed download URL.
+
+  - id: C8
+    title: Search relevance model retrained
+    type: internal
+    breaking: false
+    audience: [engineering]
+    visibility: internal
+    description: >
+      Internal relevance model retrain. No customer impact. Do not publish.

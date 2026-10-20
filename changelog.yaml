@@ -1,0 +1,69 @@
+product: Atlas Knowledge
+release: "4.2"
+release_date: 2026-11-30
+changes:
+  - id: C1
+    title: Search API v1 deprecated
+    type: api_deprecation
+    breaking: true
+    audience: [developer, partner]
+    visibility: external
+    removal_release: "4.3"
+    description: >
+      GET /v1/search is deprecated. Use GET /v2/search, which requires a
+      locale query parameter (for example en-US). v1 remains supported
+      through release 4.4.
+
+  - id: C2
+    title: Default SSO session timeout reduced
+    type: config_change
+    breaking: false
+    audience: [admin, partner]
+    visibility: external
+    description: >
+      The default SSO session timeout changes from 8 hours to 1 hour for
+      new and existing tenants. Admins can override it under
+      Settings > Security > Session.
+
+  - id: C3
+    title: Publish button moved to top toolbar
+    type: ui_change
+    breaking: false
+    audience: [author]
+    visibility: external
+    description: >
+      In the Author Console, Publish moves from the article footer to the
+      top toolbar. No behavior change.
+
+  - id: C4
+    title: Citations in AI Answers
+    type: feature
+    breaking: false
+    audience: [admin, partner, prospect]
+    visibility: external
+    feature_flag: ai_answers_citations
+    default: off
+    description: >
+      AI Answers can show the source articles behind each answer. Enable it
+      per portal under AI Answers > Display > Show citations.
+
+  - id: C5
+    title: Indexing service refactor
+    type: internal
+    breaking: false
+    audience: [engineering]
+    visibility: internal
+    description: >
+      Moved the indexing workers to the new queue. No customer impact
+      expected. Do not include in external notes.
+
+  - id: C6
+    title: Webhook payload v2 for article.published
+    type: api_change
+    breaking: true
+    audience: [developer, partner]
+    visibility: external
+    description: >
+      The article.published webhook now sends payload v2. The integer field
+      article_id is replaced by the string field article_uuid. Integrations
+      that parse article_id must be updated.

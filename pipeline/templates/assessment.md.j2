@@ -1,0 +1,17 @@
+# {{ product }} {{ release }} — Admin Readiness Assessment
+
+{{ items | length }} items. Each item maps to a competency and a change. Scenario-based items
+are marked **[Scenario]**. An answer key with a one-line rationale follows each item.
+
+{% for it in items %}
+## Q{{ loop.index }}. {% if it.scenario %}**[Scenario]** {% endif %}{{ it.question }}
+
+- **Competency:** {{ it.competency_name }} ({{ it.level }})
+- **Change:** {{ it.change_id }}
+- **Answer key:** {{ it.answer }}
+- **Rationale:** {{ it.rationale }}
+
+{% endfor %}
+---
+*Generated automatically from `changelog.yaml` by `pipeline/generate.py`. One item is produced per
+externally visible change, so coverage scales with the release. Do not edit by hand.*

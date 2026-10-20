@@ -1,0 +1,13 @@
+# Competency Map — SCAFFOLD (auto-generated, for human review)
+
+> This is a mechanical first draft derived from `changelog.yaml` by rules (one competency per
+> external change; level inferred from the change type and `breaking` flag). A human should
+> review, merge, and rename these into the final map (`01-competency-map.md`). For example,
+> the breaking integration changes below are merged into a single competency in the final map.
+
+| Draft ID | Competency (draft) | Change(s) | Suggested level |
+|----------|--------------------|-----------|-----------------|
+{% for comp in competencies %}| {{ comp.id }} | {{ comp.name }} | {{ comp.changes | join(", ") }} | {{ comp.level }} |
+{% endfor %}
+
+*Excluded (internal visibility): {{ excluded | join(", ") if excluded else "none" }}.*

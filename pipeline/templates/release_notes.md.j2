@@ -1,0 +1,32 @@
+# {{ product }} {{ release }} — Customer Release Notes
+
+**Release date:** {{ release_date }}
+
+{% if breaking %}
+## ⚠ Breaking changes (action required)
+
+These changes can break existing behavior or integrations. Review each one and complete the required action before {{ release_date }}.
+
+{% for c in breaking %}
+### {{ c.title }} (`{{ c.id }}`)
+
+{{ c.description }}
+
+**Who is affected:** {{ c.audience | join(", ") }}
+**Action required:** {{ c.action }}
+
+{% endfor %}
+{% endif %}
+## Other changes
+
+{% for c in non_breaking %}
+### {{ c.title }} (`{{ c.id }}`)
+
+{{ c.description }}
+
+**Who is affected:** {{ c.audience | join(", ") }}
+**Action:** {{ c.action }}
+
+{% endfor %}
+---
+*Generated automatically from `changelog.yaml` by `pipeline/generate.py`. Internal-only changes are excluded. Do not edit by hand; edit the changelog or the templates and regenerate.*
