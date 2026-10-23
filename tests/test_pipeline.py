@@ -22,7 +22,8 @@ REAL_CHANGELOG = REPO / "changelog.yaml"
 TEST_CHANGELOG = REPO / "tests" / "changelog_with_new_entry.yaml"
 
 sys.path.insert(0, str(REPO / "pipeline"))
-from generate import check_source, check_cross_field, check_schema  # noqa: E402
+from generate import (check_source, check_cross_field, check_schema,  # noqa: E402
+                      check_logic, derive_level, classify_competency)
 
 
 def run(changelog, outdir):
@@ -122,6 +123,42 @@ def test_schema_validation():
     assert "missing required field" in errs
 
 
+def test_connector_change_supported():
+    """connector_change is a first-class type: valid, breaking->troubleshoot, grouped as integration."""
+    c = {"id": "C7", "title": "SharePoint connector v2", "type": "connector_change",
+         "breaking": True, "audience": ["admin", "developer"], "visibility": "external",
+         "description": "SharePoint connector v2 is now available."}
+    assert check_schema({"changes": [c]}) == []            # valid type now
+    assert derive_level(c) == "troubleshoot"               # breaking
+    cid, _, level = classify_competency(c)
+    assert cid == "COMP-INTEGRATIONS" and level == "troubleshoot"
+
+
+def test_logic_checks():
+    """Logical/common-sense warnings fire, and the real changelog stays clean."""
+    assert check_logic(yaml.safe_load(open(REAL_CHANGELOG))) == []   # no logic noise on real data
+
+    bad = {"release": "4.2", "changes": [
+        {"id": "A", "title": "Same title", "type": "feature", "breaking": False,
+         "audience": ["admin"], "visibility": "external", "description": "a long enough description"},
+        {"id": "B", "title": "Same title", "type": "api_deprecation", "breaking": True,
+         "audience": ["prospect"], "visibility": "external", "removal_release": "4.1",
+         "description": "short"},
+    ]}
+    warns = " ".join(check_logic(bad))
+    assert "duplicate title" in warns                 # A and B share a title
+    assert "removal_release 4.1 is not after" in warns  # 4.1 <= 4.2
+    assert "no one in the audience" in warns          # breaking but only prospect
+    assert "too short" in warns                       # 'short' description
+
+
+def test_empty_audience_on_external_warns():
+    """An external change with no audience is flagged (gap found while testing)."""
+    c = {"id": "C7", "title": "x", "type": "connector_change", "breaking": True,
+         "audience": [], "visibility": "external", "description": "x"}
+    assert any("audience is empty" in w for w in check_cross_field({"changes": [c]}))
+
+
 def test_cross_field_checks():
     """Cross-field warnings fire on bad combinations, and the real changelog is clean."""
     # the real changelog should NOT add cross-field noise
@@ -172,6 +209,9 @@ if __name__ == "__main__":
                test_internal_only_changelog_still_safe,
                test_source_consistency_flags_known_issues,
                test_schema_validation,
+               test_connector_change_supported,
+               test_logic_checks,
+               test_empty_audience_on_external_warns,
                test_cross_field_checks,
                test_check_mode_passes_on_committed_outputs,
                test_check_mode_detects_drift):

@@ -27,12 +27,14 @@ competency-map scaffold regenerate themselves.
 ```bash
 pip install -r requirements.txt
 
-python pipeline/generate.py            # regenerate (deterministic)
-python pipeline/generate.py --check    # fail if committed outputs are stale (used in CI)
-python pipeline/generate.py --strict   # treat source-consistency warnings as errors
-python pipeline/generate.py --polish   # optional guarded LLM polish (needs an API key; safe to omit)
+python pipeline/generate.py             # regenerate (deterministic)
+python pipeline/generate.py --validate  # validate the changelog only (schema + registry + consistency)
+python pipeline/generate.py --check     # fail if committed outputs are stale (used in CI)
+python pipeline/generate.py --strict    # treat source-consistency warnings as errors
+python pipeline/generate.py --polish    # optional guarded LLM polish (needs an API key; safe to omit)
+python pipeline/generate.py --review-text  # optional AI typo/clarity review of free text (needs API key)
 
-python -m pytest -q                    # or: python tests/test_pipeline.py && python tests/test_llm_polish.py
+python -m pytest -q                     # or: python tests/test_pipeline.py && python tests/test_llm_polish.py
 ```
 
 To prepare the **next** release, add entries to `changelog.yaml` and re-run `generate.py`. You do
@@ -61,12 +63,21 @@ is enforced in layers:
 5. **Drift check** (`--check`) — CI fails if committed outputs no longer match the changelog, so the
    generated files can never silently go stale.
 
+**Extending it: adding a new change type.** All per-type handling lives in one place — the
+`TYPE_REGISTRY` in `pipeline/generate.py`. To support a new type (e.g., `connector_change`), add a
+single entry with its level, action, assessment, and competency settings. If the changelog uses a
+type that isn't in the registry, the pipeline fails fast with a message pointing right back to it —
+so new types are a one-place, guided change, never a silent wrong output. The CI `--validate` step
+enforces this on every push.
+
 **Optional guarded AI layer** (`--polish`, `pipeline/llm_polish.py`). An LLM may only *rephrase*
 already-correct Markdown. Every call is verified: the returned text must still contain every
 required fact (change IDs, field names, settings paths, flags); if any is missing, or there is no
 API key, the LLM output is rejected and the deterministic text is returned unchanged. So enabling
 `--polish` can, at worst, do nothing — it can never introduce a wrong or hallucinated release note.
-The guardrail is unit-tested with fake models (`tests/test_llm_polish.py`).
+The guardrail is unit-tested with fake models (`tests/test_llm_polish.py`). A second optional AI
+use, `--review-text`, flags likely typos and unclear wording in the free-text fields (something
+deterministic rules can't catch) — it only flags, never changes text, and skips safely without a key.
 
 ## Assumptions
 

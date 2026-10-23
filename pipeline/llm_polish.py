@@ -45,6 +45,31 @@ def _default_llm(prompt: str) -> str:
         raise RuntimeError(f"LLM call failed: {e}")
 
 
+REVIEW_PROMPT = (
+    "You are reviewing a product changelog entry for spelling mistakes and unclear wording.\n"
+    "List only real problems, briefly. If the text is fine, reply exactly: none.\n"
+    "Do not rewrite the text; just point out issues.\n\n{text}")
+
+
+def review_text(items, llm=None):
+    """
+    Optional AI review for free-text typos/clarity that deterministic checks can't catch
+    (e.g., 'Aharepoint' instead of 'SharePoint'). It only *flags* issues, never changes text,
+    so it is safe. `items` is a list of (id, text). Returns a list of suggestion strings.
+    Falls back to [] if there is no API key or the call fails.
+    """
+    llm = llm or _default_llm
+    findings = []
+    for cid, text in items:
+        try:
+            out = llm(REVIEW_PROMPT.format(text=text))
+        except Exception:
+            return []                       # no key / offline: skip the whole review quietly
+        if out and out.strip().lower() != "none":
+            findings.append(f"{cid}: AI text review (suggestion): {out.strip()}")
+    return findings
+
+
 def verify_facts(polished: str, must_keep):
     """Return the list of required facts that are MISSING from the polished text."""
     return [fact for fact in must_keep if fact not in polished]

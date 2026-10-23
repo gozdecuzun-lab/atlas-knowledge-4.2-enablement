@@ -9,6 +9,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
+      - name: Validate changelog (schema + type registry + consistency)
+        run: python pipeline/generate.py --validate
       - name: Run tests (quality gates + regeneration proof + LLM guardrail)
         run: python -m pytest -q
       - name: Fail if generated outputs drift from the changelog
