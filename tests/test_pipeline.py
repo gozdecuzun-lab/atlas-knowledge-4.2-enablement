@@ -74,12 +74,12 @@ def test_adding_entries_regenerates_without_hand_editing(tmp_path):
 
     # the NEW external breaking change (C7) is picked up automatically...
     assert "Bulk Export API v1 removed" in notes
-    assert "C7" in notes
-    assert "C7" in assessment
+    assert "C7" in assessment                       # assessment still prints ids
 
-    # ...and placed in the breaking section with an action
+    # ...and placed in the breaking section with its type label and an action
     breaking_section = notes.split("## Other changes")[0]
-    assert "C7" in breaking_section
+    assert "Bulk Export API v1 removed" in breaking_section
+    assert "[API change]" in breaking_section
 
     # the NEW internal change (C8) must stay out of customer-facing output
     assert "C8" not in notes

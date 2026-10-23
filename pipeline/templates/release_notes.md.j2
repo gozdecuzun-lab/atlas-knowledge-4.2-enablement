@@ -8,7 +8,7 @@
 These changes can break existing behavior or integrations. Review each one and complete the required action before {{ release_date }}.
 
 {% for c in breaking %}
-### {{ c.title }} (`{{ c.id }}`)
+### [{{ c.label }}] {{ c.title }}
 
 {{ c.description }}
 
@@ -20,7 +20,7 @@ These changes can break existing behavior or integrations. Review each one and c
 ## Other changes
 
 {% for c in non_breaking %}
-### {{ c.title }} (`{{ c.id }}`)
+### [{{ c.label }}] {{ c.title }}
 
 {{ c.description }}
 

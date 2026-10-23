@@ -33,9 +33,9 @@ def _default_llm(prompt: str) -> str:
             import anthropic
             client = anthropic.Anthropic()
             msg = client.messages.create(
-                model="claude-3-5-sonnet-latest", max_tokens=2000,
+                model="claude-haiku-5-5", max_tokens=2000,
                 messages=[{"role": "user", "content": prompt}])
-            return msg.content[0].text
+            return "".join(getattr(b, "text", "") for b in msg.content if getattr(b, "type", None) == "text")
         import openai
         client = openai.OpenAI()
         resp = client.chat.completions.create(

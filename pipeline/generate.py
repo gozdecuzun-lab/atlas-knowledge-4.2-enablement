@@ -156,17 +156,17 @@ def _assess_connector_change(change, release):
 
 TYPE_REGISTRY = {
     "api_deprecation":  {"default_level": "troubleshoot", "integration": True,  "verb": "Understand",
-                         "action": _action_api_deprecation, "assessment": _assess_api_deprecation},
+                         "label": "API deprecation", "action": _action_api_deprecation, "assessment": _assess_api_deprecation},
     "api_change":       {"default_level": "troubleshoot", "integration": True,  "verb": "Understand",
-                         "action": _action_api_change,      "assessment": _assess_api_change},
+                         "label": "API change", "action": _action_api_change,      "assessment": _assess_api_change},
     "connector_change": {"default_level": "apply",        "integration": True,  "verb": "Configure",
-                         "action": _action_connector_change, "assessment": _assess_connector_change},
+                         "label": "Connector change", "action": _action_connector_change, "assessment": _assess_connector_change},
     "config_change":    {"default_level": "apply",        "integration": False, "verb": "Manage",
-                         "action": _action_config_change,   "assessment": _assess_config_change},
+                         "label": "Config change", "action": _action_config_change,   "assessment": _assess_config_change},
     "feature":          {"default_level": "apply",        "integration": False, "verb": "Configure and validate",
-                         "action": _action_feature,         "assessment": _assess_feature},
+                         "label": "New feature", "action": _action_feature,         "assessment": _assess_feature},
     "ui_change":        {"default_level": "know",         "integration": False, "verb": "Be aware of",
-                         "action": _action_ui_change,       "assessment": _assess_ui_change},
+                         "label": "UI change", "action": _action_ui_change,       "assessment": _assess_ui_change},
 }
 
 # Types whose questions read naturally as a scenario even when not breaking.
@@ -194,6 +194,11 @@ def derive_level(change):
 
 def derive_action(change):
     return _spec(change)["action"](change)
+
+
+def derive_label(change):
+    """Human-readable change-type label for customer-facing output (e.g. 'API deprecation')."""
+    return _spec(change)["label"]
 
 
 def classify_competency(change):
@@ -391,6 +396,7 @@ def build_outputs(data, repo, polish=False):
     excluded = [c["id"] for c in changes if c.get("visibility") != "external"]
     for c in external:
         c["action"] = derive_action(c)
+        c["label"] = derive_label(c)
     breaking = [c for c in external if c.get("breaking")]
     non_breaking = [c for c in external if not c.get("breaking")]
     items = [build_assessment_item(c, data["release"]) for c in external]
@@ -418,12 +424,16 @@ def build_outputs(data, repo, polish=False):
 
     if polish:
         from llm_polish import polish_markdown
-        # facts that must survive a rephrase, or we reject the LLM output
-        must_keep = ([c["id"] for c in external]
-                     + ["locale", "article_uuid", "Settings > Security > Session",
-                        "off by default"])
+        # Facts that must survive a rephrase, or we reject the LLM output.
+        # Release notes no longer print change ids, so they are anchored on titles;
+        # the assessment still prints ids, so those stay in its must-keep list.
+        terms = ["locale", "article_uuid", "Settings > Security > Session", "off by default"]
+        must_keep_by_file = {
+            "02-release-notes.md": [c["title"] for c in external] + terms,
+            "04-assessment.md": [c["id"] for c in external] + terms,
+        }
         for name in ("02-release-notes.md", "04-assessment.md"):
-            outputs[name], status = polish_markdown(outputs[name], must_keep)
+            outputs[name], status = polish_markdown(outputs[name], must_keep_by_file[name])
             print(f"  polish[{name}]: {status}")
 
     stats = {"external": len(external), "breaking": len(breaking), "items": len(items),

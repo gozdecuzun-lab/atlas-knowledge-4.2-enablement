@@ -6,7 +6,7 @@
 
 These changes can break existing behavior or integrations. Review each one and complete the required action before 2026-11-30.
 
-### Search API v1 deprecated (`C1`)
+### [API deprecation] Search API v1 deprecated
 
 GET /v1/search is deprecated. Use GET /v2/search, which requires a locale query parameter (for example en-US). v1 remains supported through release 4.4.
 
@@ -14,7 +14,7 @@ GET /v1/search is deprecated. Use GET /v2/search, which requires a locale query 
 **Who is affected:** developer, partner
 **Action required:** Required: migrate off the deprecated endpoint. It will be removed in a future release; confirm the exact timing in the migration guide before you migrate. Coordinate with your developer and partner teams.
 
-### Webhook payload v2 for article.published (`C6`)
+### [API change] Webhook payload v2 for article.published
 
 The article.published webhook now sends payload v2. The integer field article_id is replaced by the string field article_uuid. Integrations that parse article_id must be updated.
 
@@ -24,7 +24,7 @@ The article.published webhook now sends payload v2. The integer field article_id
 
 ## Other changes
 
-### Default SSO session timeout reduced (`C2`)
+### [Config change] Default SSO session timeout reduced
 
 The default SSO session timeout changes from 8 hours to 1 hour for new and existing tenants. Admins can override it under Settings > Security > Session.
 
@@ -32,7 +32,7 @@ The default SSO session timeout changes from 8 hours to 1 hour for new and exist
 **Who is affected:** admin, partner
 **Action:** Review the new default and override it in settings if it does not suit your tenant.
 
-### Publish button moved to top toolbar (`C3`)
+### [UI change] Publish button moved to top toolbar
 
 In the Author Console, Publish moves from the article footer to the top toolbar. No behavior change.
 
@@ -40,7 +40,7 @@ In the Author Console, Publish moves from the article footer to the top toolbar.
 **Who is affected:** author
 **Action:** No action required; let affected users know about the new location.
 
-### Citations in AI Answers (`C4`)
+### [New feature] Citations in AI Answers
 
 AI Answers can show the source articles behind each answer. Enable it per portal under AI Answers > Display > Show citations.
 
